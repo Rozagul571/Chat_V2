@@ -1,13 +1,12 @@
-# chat/authentication.py
 import jwt
 from django.conf import settings
-from rest_framework import authentication
-from rest_framework import exceptions
-from django.contrib.auth.models import User
+from rest_framework import authentication, exceptions
 
 
 class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
+        from django.contrib.auth.models import User
+
         auth_header = request.headers.get('Authorization')
 
         if not auth_header:

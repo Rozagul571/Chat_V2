@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.contrib.auth.models import User
-from .models import Chat, UserProfile
+from .models import Chat, UserProfile, Notification
 from .serializers import UserSerializer
 from .authentication import JWTAuthentication
 
@@ -25,12 +25,17 @@ class LoginView(APIView):
                 settings.SECRET_KEY,
                 algorithm='HS256'
             )
-            return Response({'status': 'success', 'user_id': user.id,'username': user.username,
-                'token': token})
+            return Response({
+                'status': 'success',
+                'user_id': user.id,
+                'username': user.username,
+                'token': token
+            })
 
-        return Response({'status': 'error',
-            'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        return Response({
+            'status': 'error',
+            'message': 'Invalid credentials'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class ChatView(APIView):
@@ -67,10 +72,14 @@ class ChatMessagesView(APIView):
                 except UserProfile.DoesNotExist:
                     sender_type = 'user'
 
-                messages_data.append({'id': message.id,
-                    'sender': message.sender.username, 'sender_type': sender_type,
-                    'content': message.content, 'timestamp': message.timestamp.isoformat(),
-                    'mentions': [user.username for user in message.mentions.all()]})
+                messages_data.append({
+                    'id': message.id,
+                    'sender': message.sender.username,
+                    'sender_type': sender_type,
+                    'content': message.content,
+                    'timestamp': message.timestamp.isoformat(),
+                    'mentions': [user.username for user in message.mentions.all()]
+                })
 
             return Response({'status': 'success', 'messages': messages_data})
 
@@ -86,3 +95,74 @@ class UserListView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+
+
+class NotificationListView(APIView):
+    """
+    Foydalanuvchining barcha o‘qilmagan notificationlarini olish
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+            notifications = Notification.objects.filter(
+                user_profile=user_profile, is_read=False
+            )
+            notifications_data = []
+
+            for notification in notifications:
+                notifications_data.append({
+                    'id': notification.id,
+                    'message': notification.message.content,
+                    'sender': notification.message.sender.username,
+                    'chat_id': str(notification.chat_id),
+                    'timestamp': notification.created_at.isoformat()
+                })
+
+            return Response({
+                'status': 'success',
+                'count': len(notifications_data),
+                'notifications': notifications_data
+            })
+
+        except UserProfile.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class NotificationReadView(APIView):
+    """
+    Notificationni o‘qilgan deb belgilash
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, notification_id):
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+            notification = Notification.objects.get(
+                id=notification_id, user_profile=user_profile
+            )
+            notification.is_read = True
+            notification.save()
+
+            return Response({
+                'status': 'success',
+                'message': 'Notification marked as read'
+            })
+
+        except UserProfile.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        except Notification.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Notification not found'
+            }, status=status.HTTP_404_NOT_FOUND)
