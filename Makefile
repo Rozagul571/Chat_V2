@@ -24,6 +24,10 @@ logs:
 	docker logs chat_app
 
 
+clean:
+	docker-compose down -v
+	docker rmi chat_app
+
 create-users:
 	docker exec -it chat_app python manage.py create_users
 
