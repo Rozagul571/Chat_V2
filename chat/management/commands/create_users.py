@@ -4,8 +4,6 @@ from chat.models import UserProfile
 
 
 class Command(BaseCommand):
-    help = 'Create default Visa, Mastercard admins and a normal user'
-
     def handle(self, *args, **kwargs):
         users = [
             {'username': 'visa', 'password': 'visa123', 'user_type': 'visa_admin'},

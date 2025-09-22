@@ -2,21 +2,17 @@ FROM python:3.9-slim-bullseye
 
 WORKDIR /app
 
-# System deps
-RUN apt-get update -y \
-    && apt-get install -y \
-       netcat \
-       libgdal-dev \
-       python3-gdal \
-       libgl1 \
-       libglib2.0-0 \
-       ffmpeg \
+RUN apt-get update && apt-get install -y \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip
 
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
 COPY . /app/
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+EXPOSE 8000
+
+CMD ["sh", "-c", "python manage.py migrate && python manage.py create_users && daphne -b 0.0.0.0 -p 8000 config.asgi:application"]
